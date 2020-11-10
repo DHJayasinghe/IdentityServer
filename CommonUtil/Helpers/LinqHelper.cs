@@ -2,7 +2,7 @@
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace CommonUtil
+namespace CommonUtil.Helpers
 {
     public static class LinqHelper
     {
