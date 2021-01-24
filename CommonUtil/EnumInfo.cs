@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CommonUtil.Attributes;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -37,6 +38,14 @@ namespace CommonUtil
             enumValue.GetType().GetMember(enumValue.ToString()).FirstOrDefault()?.GetCustomAttribute<DisplayAttribute>()?.Description;
 
         /// <summary>
+        /// Get description attribute value of provided <paramref name="enumValue"/>
+        /// </summary>
+        /// <param name="enumValue"></param>
+        /// <returns></returns>
+        public static string GetAudience<TEnum>(this TEnum enumValue) where TEnum : struct =>
+            enumValue.GetType().GetMember(enumValue.ToString()).FirstOrDefault()?.GetCustomAttribute<AudienceAttribute>()?.Audience;
+
+        /// <summary>
         /// Convert provided <paramref name="value"/> to specified <typeparamref name="TEnum"/>, and returns its int value
         /// </summary>
         /// <typeparam name="TEnum"></typeparam>
@@ -45,11 +54,15 @@ namespace CommonUtil
         public static int GetValue<TEnum>(string value) where TEnum : struct, IComparable, IFormattable, IConvertible =>
             (int)Enum.Parse(typeof(TEnum), value);
 
+        /// <summary>
+        /// Get name of provided <paramref name="enumValue"/>
+        /// </summary>
+        /// <param name="enumValue"></param>
+        /// <returns></returns>
+        public static int GetValue<TEnum>(this TEnum enumValue) where TEnum : struct => (int)Enum.Parse(typeof(TEnum), enumValue.ToString());
+
         public static string GetDescriptionByInt<TEnum>(string value) where TEnum : struct, IComparable, IFormattable, IConvertible =>
              ((TEnum)Enum.Parse(typeof(TEnum), value)).ToString();
-
-        public static int GetValue<TEnum>(TEnum value) where TEnum : struct, IComparable, IFormattable, IConvertible =>
-           (int)Enum.Parse(typeof(TEnum), value.ToString());
     }
 
     public sealed class EnumDescription

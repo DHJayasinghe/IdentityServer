@@ -6,6 +6,7 @@ using Identity.API.Entities;
 using Identity.API.Logic.Enums;
 using Identity.API.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -18,6 +19,7 @@ namespace Identity.API.Controllers
 {
     [Route("api/usergroup")]
     [Authorize(AuthenticationSchemes = "Bearer")]
+    [Produces("application/json")]
     public class UserGroupController : Controller
     {
         private readonly ILogger _logger;
@@ -37,8 +39,14 @@ namespace Identity.API.Controllers
             _currentUser = currentUser;
         }
 
+        /// <summary>
+        /// Get full user group details along with assigned permissions and users (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="id">user group id</param>
         [HttpGet("")]
-        public IActionResult Get(int id)
+        [ProducesResponseType(typeof(Envelope<UserGroupDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult Get([FromQuery] int id)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -49,31 +57,38 @@ namespace Identity.API.Controllers
             if (userGroup.HasNoValue)
                 return Error($"No matching user group found: {id}");
 
-            var result = userGroup.Unwrap(d => new
+            var result = userGroup.Unwrap(d => new UserGroupDTO
             {
-                d.Id,
-                d.Name,
-                d.Description,
-                Permissions = d.GroupPermissions.Select(p => new
+                Id = d.Id,
+                Name = d.Name,
+                Description = d.Description,
+                UsersCount = d.UserGroups.Count(),
+                PermissionsCount = d.GroupPermissions.Count(),
+                Permissions = d.GroupPermissions.Select(p => new GroupPermissionDTO
                 {
-                    p.Id,
-                    p.PermissionId,
-                    p.Permission.Name,
-                    p.Permission.Description
+                    Id = p.Id,
+                    PermissionId = p.PermissionId,
+                    Name = p.Permission.Name,
+                    Description = p.Permission.Description
                 }),
-                AppUsers = d.UserGroups.Select(u => new
+                AppUsers = d.UserGroups.Select(u => new GroupUserDTO
                 {
-                    u.Id,
+                    Id = u.Id,
                     UserId = u.AppUserId,
                     Email = u.AppUser.Email ?? u.AppUser.Username,
-                    u.AppUser.Fullname
+                    Fullname = u.AppUser.Fullname
                 })
             });
 
             return Ok(result, contextReadonly: true);
         }
 
+        /// <summary>
+        /// List all available user groups (Authenticated: User account admin permission is required)
+        /// </summary>
         [HttpGet("list")]
+        [ProducesResponseType(typeof(Envelope<IEnumerable<UserGroupDTO>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult GetList()
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
@@ -94,8 +109,24 @@ namespace Identity.API.Controllers
             return Ok(result, contextReadonly: true);
         }
 
+        /// <summary>
+        /// Register a new user account (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     POST {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "name": "Admin",
+        ///       "description": "Administrator permissions",
+        ///       "selectedPermissions": ["UserAccountAdmin","SampleModuleViewer"]
+        ///     }
+        /// </remarks>
         [HttpPost("")]
-        public IActionResult Create(CreateUserGroupModel model)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult Create([FromBody] CreateUserGroupModel model)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -169,8 +200,15 @@ namespace Identity.API.Controllers
             return Result.Ok(result);
         }
 
+        /// <summary>
+        /// Delete an existin user group (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="name">User group name</param>
         [HttpDelete("")]
-        public IActionResult Delete(string name)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult Delete([FromQuery] string name)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -191,8 +229,25 @@ namespace Identity.API.Controllers
             return Ok("User group removed");
         }
 
+        /// <summary>
+        /// Edit an existing user group (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     PUT {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "id": "1",
+        ///       "name": "Admin",
+        ///       "description": "Administrator permissions" ,
+        ///       "selectedPermissions": ["UserAccountAdmin","SampleModuleViewer"]
+        ///     }
+        /// </remarks>
         [HttpPut("")]
-        public IActionResult Edit(EditUserGroupModel model)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult Edit([FromBody] EditUserGroupModel model)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -240,8 +295,15 @@ namespace Identity.API.Controllers
             return Ok("User group updated");
         }
 
+        /// <summary>
+        /// List not assigned permissions list for a user group (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="id">user group id</param>
         [HttpGet("notassigned/permissions")]
-        public IActionResult GetNotAssignedPermissions(int id)
+        [ProducesResponseType(typeof(Envelope<IEnumerable<PermissionDTO>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult GetNotAssignedPermissions([FromQuery] int id)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -258,12 +320,13 @@ namespace Identity.API.Controllers
             var result = permissions
                 .Where(p => !assignedPermissions.Any(d => d == p.Id)) // exclude already assigned permissions to specified group
                 .Join(EnumInfo.GetList<Permission>().ToList(), p => p.Name, all => all.Name, (p, all) => new { p, all })
-                .Select(d => new
+                .Select(d => new PermissionDTO
                 {
-                    d.p.Id,
-                    d.p.Name,
-                    d.p.Description,
-                    d.all.Group,
+                    Id = d.p.Id,
+                    Name = d.p.Name,
+                    Description = d.p.Description,
+                    Group = d.all.Group,
+                    Active = true
                 });
 
             return Ok(result, contextReadonly: true);

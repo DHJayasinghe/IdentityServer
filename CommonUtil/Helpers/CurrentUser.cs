@@ -8,19 +8,35 @@ namespace CommonUtil.Helpers
     public sealed class CurrentUser : ICurrentUser
     {
         private readonly HttpContext _httpContext;
+
         public CurrentUser(IHttpContextAccessor httpContextAccessor) => _httpContext = httpContextAccessor.HttpContext;
+
         public CurrentUser(HttpContext httpContext) => _httpContext = httpContext;
 
-        public int Id => int.Parse(_httpContext.User.Identity.Name);
+        /// <summary>
+        /// Take logged in user Id from HttpContext. default value is -1
+        /// </summary>
+        public int Id => IsAuthenticated ? int.Parse(_httpContext.User.Identity.Name) : -1;
 
-        public string Name => (_httpContext.User.Identity as ClaimsIdentity).Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier).Value;
+        /// <summary>
+        /// Take NameIdentifier claim value as logged in user name. default is "anonymous"
+        /// </summary>
+        public string Name => IsAuthenticated
+            ? (_httpContext.User.Identity as ClaimsIdentity).Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier).Value
+            : "anonymous";
 
+        /// <summary>
+        /// Convert int roles values to their corresponding enum values and filter out their corresponding description attribute values
+        /// </summary>
         public IEnumerable<string> Roles
         {
             get
             {
+                if (!IsAuthenticated)
+                    return Enumerable.Empty<string>();
+
                 IEnumerable<string> roles = (_httpContext.User.Identity as ClaimsIdentity).Claims.Where(c => c.Type == ClaimTypes.Role).Select(d => d.Value);
-                return roles.Select(role => EnumInfo.GetDescriptionByInt<Permission>(role)); // convert int roles into it'd description
+                return roles.Select(role => EnumInfo.GetDescriptionByInt<Permission>(role)); 
             }
         }
 
@@ -29,21 +45,4 @@ namespace CommonUtil.Helpers
         public bool HasRole(params Permission[] roles) => roles.Any(role => _httpContext.User.IsInRole(EnumInfo.GetValue(role).ToString()));
     }
 
-    public interface ICurrentUser
-    {
-        int Id { get; }
-
-        string Name { get; }
-
-        /// Determine whether current user is authenticated to access resources
-        /// </summary>
-        bool IsAuthenticated { get; }
-
-        /// <summary>
-        /// Determine whether current user is in mentioned role
-        /// </summary>
-        /// <param name="role"></param>
-        /// <returns></returns>
-        bool HasRole(params Permission[] roles);
-    }
 }

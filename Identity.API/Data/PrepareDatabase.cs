@@ -29,13 +29,13 @@ namespace Identity.API.Data
             Console.WriteLine("Seeding initial data...");
 
             bool newEntry = false;
-            Maybe<AppUser> adminUser = context.AppUser.FirstOrDefault(e => e.Username == "dhanuka@antlerfoundry.com");
+            Maybe<AppUser> adminUser = context.AppUser.FirstOrDefault(e => e.Username == "identity.admin@gmail.com");
             if (adminUser.HasNoValue)
             {
                 adminUser = new AppUser(
                     firstName: "Dhanuka",
                     lastName: "Jayasinghe",
-                    username: Email.Create("dhanuka@antlerfoundry.com").Value,
+                    username: Email.Create("identity.admin@gmail.com").Value,
                     password: Password.Create("Admin@#456").Value
                 );
                 context.AppUser.Add(adminUser.Value);

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Identity.API.Models
+namespace CommonUtil.Models
 {
     public sealed class DataTableAjaxPostModel
     {

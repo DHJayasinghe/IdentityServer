@@ -4,6 +4,7 @@ using Identity.API.Data;
 using Identity.API.Data.Repositories;
 using Identity.API.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -14,6 +15,7 @@ namespace Identity.API.Controllers
 {
     [Route("api/permission")]
     [Authorize(AuthenticationSchemes = "Bearer")]
+    [Produces("application/json")]
     public class PermissionController : Controller
     {
         private readonly ILogger _logger;
@@ -31,10 +33,15 @@ namespace Identity.API.Controllers
             _currentUser = currentUser;
         }
 
+        /// <summary>
+        /// List all availble module permissions (Authenticated: User account admin permission is required)
+        /// </summary>
         [HttpGet("list")]
+        [ProducesResponseType(typeof(Envelope<IEnumerable<PermissionDTO>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult GetList()
         {
-            if (!_currentUser.HasRole( Permission.UserAccountAdmin))
+            if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
 
             _logger.LogInformation("Retrieving system modules permission list");
@@ -51,12 +58,12 @@ namespace Identity.API.Controllers
                     all,
                     active = (Maybe<AppPermission>)active.FirstOrDefault()
                 })
-                .Select(d => new
+                .Select(d => new PermissionDTO
                 {
                     Id = d.active.HasValue ? d.active.Unwrap(p => p.Id) : default(int?),
-                    d.all.Name,
-                    d.all.Description,
-                    d.all.Group,
+                    Name = d.all.Name,
+                    Description = d.all.Description,
+                    Group = d.all.Group,
                     Active = d.active.HasValue
                 });
 
@@ -64,7 +71,14 @@ namespace Identity.API.Controllers
             return Ok(result, contextReadonly: true);
         }
 
+        /// <summary>
+        /// Enable a system permission (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="name">permission name</param>
         [HttpPost("")]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult Create(string name)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
@@ -86,7 +100,14 @@ namespace Identity.API.Controllers
             return Ok("Permission added");
         }
 
+        /// <summary>
+        /// Disable a system permission (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="name">permission name</param>
         [HttpDelete("")]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult Delete(string name)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))

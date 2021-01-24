@@ -6,14 +6,17 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using CommonUtil;
 using CommonUtil.Helpers;
+using CommonUtil.Models;
 using CommonUtil.Specification;
 using CommonUtil.ValueTypes;
 using Identity.API.Common;
 using Identity.API.Data;
 using Identity.API.Data.Repositories;
 using Identity.API.Entities;
+using Identity.API.Logic.Specifications;
 using Identity.API.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,6 +25,7 @@ namespace Identity.API.Controllers
 {
     [Route("api/account")]
     [Authorize(AuthenticationSchemes = "Bearer")]
+    [Produces("application/json")]
     public sealed class AccountController : Controller
     {
         public static ConcurrentDictionary<string, string> RefereshTokenStore = new ConcurrentDictionary<string, string>();
@@ -58,7 +62,24 @@ namespace Identity.API.Controllers
             _groupRepo = new AppGroupRepository(unitOfWork);
         }
 
+        /// <summary>
+        /// Register a new user account (Authenticated: User account create/admin permission is required)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     POST {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "firstName": "Emilia",
+        ///       "lastName": "Clarke",
+        ///       "username": "newaccount2create@gmail.com" ,
+        ///       "password":"$trongPa5sw0rd"
+        ///     }
+        /// </remarks>
         [HttpPost("register")]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult Register([FromBody] RegistrationModel model)
         {
             if (!_currentUser.HasRole(Permission.UserAccountCreator, Permission.UserAccountAdmin))
@@ -83,9 +104,23 @@ namespace Identity.API.Controllers
             return Ok("Registration successful");
         }
 
+        /// <summary>
+        /// Authenticate an existing user (Public open endpoint)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     POST {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "username": "emailaddress@gmail.com" ,
+        ///       "password":"$trongPa5sw0rd"
+        ///     }
+        /// </remarks>
         [AllowAnonymous]
         [HttpPost("authenticate")]
-        public async Task<IActionResult> Authenticate(AuthenticateModel model)
+        [ProducesResponseType(typeof(Envelope<AuthenticateResponseDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Authenticate([FromBody] AuthenticateModel model)
         {
             _logger.LogInformation("Authenticating user: {0}", model.Username);
 
@@ -138,8 +173,22 @@ namespace Identity.API.Controllers
             return Ok(new AuthenticateResponseDTO(account.Value, jwtToken, refreshToken));
         }
 
+        /// <summary>
+        /// Refresh expired or existing access token (Public open endpoint)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     POST {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "accessToken": "current_access_token" ,
+        ///       "refreshToken":"refresh_token_issued_with_current_access_token"
+        ///     }
+        /// </remarks>
         [AllowAnonymous]
         [HttpPost("refreshtoken")]
+        [ProducesResponseType(typeof(Envelope<ExchangeRefreshTokenResponseDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> RefreshToken([FromBody] ExchangeRefreshTokenModel model)
         {
             _logger.LogInformation("Refreshing access token: {0} with refresh token: {1}", model.AccessToken, model.RefreshToken);
@@ -198,8 +247,23 @@ namespace Identity.API.Controllers
                 return HttpContext.Connection.RemoteIpAddress.MapToIPv4().ToString();
         }
 
+        /// <summary>
+        /// Assign user groups for an existing account (Authenticated: User account edit/admin permission is required)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     PUT {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "id": "1",
+        ///       "selectedUserGroups": ["Admin"],
+        ///     }
+        /// </remarks>
         [HttpPut("usergroups")]
-        public IActionResult AssignUserGroup(AssignUserGroupModel model)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult AssignUserGroup([FromBody] AssignUserGroupModel model)
         {
             if (!_currentUser.HasRole(Permission.UserAccountEditor, Permission.UserAccountAdmin))
                 return Forbidden();
@@ -209,7 +273,7 @@ namespace Identity.API.Controllers
 
             Maybe<AppUser> account = _appUserRepo.GetById(model.Id);
             if (account.HasNoValue)
-                return Error<AuthenticateResponseDTO>($"No matching user account found: {model.Id}");
+                return Error($"No matching user account found: {model.Id}");
 
             model.SelectedUserGroups ??= new string[] { };
 
@@ -251,8 +315,23 @@ namespace Identity.API.Controllers
             return Result.Ok(result);
         }
 
+        /// <summary>
+        /// Reset password of an existing account (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     POST {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "username": "account2reset@gmail.com",
+        ///       "password": "new$trongPa5sw0rd",
+        ///     }
+        /// </remarks>
         [HttpPost("password/reset")]
-        public IActionResult ResetPassword(ResetPasswordModel model)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult ResetPassword([FromBody] ResetPasswordModel model)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -274,8 +353,15 @@ namespace Identity.API.Controllers
             return Ok("Account password resetted");
         }
 
+        /// <summary>
+        /// Block access for an existing account (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="username">username</param>
         [HttpPost("block")]
-        public IActionResult BlockAccount(string username)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult BlockAccount([FromQuery] string username)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -295,8 +381,15 @@ namespace Identity.API.Controllers
             return Ok("Account blocked");
         }
 
+        /// <summary>
+        /// Unblock access of a blocked account (Authenticated: User account admin permission is required)
+        /// </summary>
+        /// <param name="username">username</param>
         [HttpPost("unblock")]
-        public IActionResult UnblockAccount(string username)
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult UnblockAccount([FromQuery] string username)
         {
             if (!_currentUser.HasRole(Permission.UserAccountAdmin))
                 return Forbidden();
@@ -313,8 +406,26 @@ namespace Identity.API.Controllers
             return Ok("Account unblocked");
         }
 
+
+        /// <summary>
+        /// List and search all existing accounts with paging behaviour (Authenticated: User account view/admin permission is required)
+        /// </summary>
+        /// <remarks>
+        /// Sample request:
+        /// 
+        ///     POST {baseurl}/{api_endpoint}
+        ///     {        
+        ///       "search": {
+        ///         "value":""
+        ///       },
+        ///       "start": 0, // starting row index. next iteration = start + length
+        ///       "length":10. // no. of records per page (take count)
+        ///     }
+        /// </remarks>
         [HttpPost("list")]
-        public IActionResult GetAccounts(DataTableAjaxPostModel model)
+        [ProducesResponseType(typeof(Envelope<IDataTableAjaxPostResponse<UserAccountSummaryDTO>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
+        public IActionResult GetAccounts([FromBody] DataTableAjaxPostModel model)
         {
             if (!_currentUser.HasRole(Permission.UserAccountViewer, Permission.UserAccountAdmin))
                 return Forbidden();
@@ -324,6 +435,13 @@ namespace Identity.API.Controllers
 
             Specification<AppUser> spec = string.IsNullOrWhiteSpace(model.Search.Value) ? Specification<AppUser>.All : Specification<AppUser>.None;
             string[] searchTerms = model.Search.Value.Split(" ", StringSplitOptions.RemoveEmptyEntries);
+            foreach (string term in searchTerms)
+            {
+                if (Email.Create(term).IsSuccess) // search term is an email address
+                    spec = spec.Or(new UserAccountWithUsernameSpec(term));
+                else
+                    spec = spec.Or(new UserAccountWithNameLikeSpec(term));
+            }
 
             AppUserSortableColumn sortBy = AppUserSortableColumn.Id;
             bool sortDir = true;
@@ -348,16 +466,23 @@ namespace Identity.API.Controllers
                 DateTimeRegistered = d.CreatedDateTimeUtc?.ToLocalTime().ToString("yyyy-MM-dd hh:mm tt")
             });
 
-            return Ok(new
+            return Ok(new DataTableAjaxPostResponse<UserAccountSummaryDTO>
             {
-                draw = model.Draw,
-                recordsTotal = totalResultsCount,
-                recordsFiltered = filteredResultsCount,
-                data = result
+                Draw = model.Draw,
+                RecordsTotal = totalResultsCount,
+                RecordsFiltered = filteredResultsCount,
+                Data = result
             }, contextReadonly: true);
         }
 
+        /// <summary>
+        /// View an existing user account details (Authenticated: User account view/admin permission is required)
+        /// </summary>
+        /// <param name="id">user account id</param>
         [HttpGet("")]
+        [ProducesResponseType(typeof(Envelope<UserAccountDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult Get(int id)
         {
             if (!_currentUser.HasRole(Permission.UserAccountViewer, Permission.UserAccountAdmin))
@@ -395,7 +520,14 @@ namespace Identity.API.Controllers
             }), contextReadonly: true);
         }
 
+        /// <summary>
+        /// List not assigned user groups for an existing user account (Authenticated: User account view/admin permission is required)
+        /// </summary>
+        /// <param name="id">user account id</param>
         [HttpGet("notassigned/usergroups")]
+        [ProducesResponseType(typeof(Envelope<IEnumerable<UserGroupDTO>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Envelope<string>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status403Forbidden)]
         public IActionResult GetNotAssignedUserGroups(int id)
         {
             if (!_currentUser.HasRole(Permission.UserAccountViewer, Permission.UserAccountAdmin))

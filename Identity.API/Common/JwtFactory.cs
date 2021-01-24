@@ -15,7 +15,7 @@ namespace Identity.API.Common
         Task<AccessTokenDTO> GenerateEncodedToken(string id, string userName, string[] roles);
     }
 
-    internal sealed class JwtFactory : IJwtFactory
+    public sealed class JwtFactory : IJwtFactory
     {
         private readonly IJwtTokenHandler _jwtTokenHandler;
         private readonly JwtIssuerOptions _jwtOptions;
@@ -24,6 +24,12 @@ namespace Identity.API.Common
         {
             _jwtTokenHandler = jwtTokenHandler;
             _jwtOptions = jwtOptions.Value;
+            ThrowIfInvalidOptions(_jwtOptions);
+        }
+        public JwtFactory(IJwtTokenHandler jwtTokenHandler, JwtIssuerOptions jwtOptions)
+        {
+            _jwtTokenHandler = jwtTokenHandler;
+            _jwtOptions = jwtOptions;
             ThrowIfInvalidOptions(_jwtOptions);
         }
 
@@ -37,8 +43,24 @@ namespace Identity.API.Common
                  new Claim(JwtRegisteredClaimNames.Jti, await _jwtOptions.JtiGenerator()),
                  new Claim(JwtRegisteredClaimNames.Iat, ToUnixEpochDate(_jwtOptions.IssuedAt).ToString(), ClaimValueTypes.Integer64),
                  new Claim(ClaimTypes.Email, userName),
+                 new Claim(JwtRegisteredClaimNames.Iss,_jwtOptions.Issuer),
                  identity.FindFirst(Constants.Strings.JwtClaimIdentifiers.Id)
              };
+
+            List<string> audiences = new List<string>();
+            // add role claims
+            roles.ToList().ForEach(role =>
+            {
+                if (Enum.TryParse(value: role, ignoreCase: true, out Permission permission))
+                {
+                    claims.Add(new Claim(ClaimTypes.Role, permission.GetValue().ToString()));
+                    audiences.Add(permission.GetAudience()); // separate audiences
+                }
+            });
+            // add audience claims related to permissions
+            claims.AddRange(audiences.Distinct()
+               .Select(audience => new Claim(JwtRegisteredClaimNames.Aud, audience)));
+
             claims.AddRange(roles.Where(d => Enum.TryParse<Permission>(d, ignoreCase: true, out _))
                 .Select(role => new Claim(ClaimTypes.Role, EnumInfo.GetValue<Permission>(role).ToString())));
             // Create the JWT security token and encode it.

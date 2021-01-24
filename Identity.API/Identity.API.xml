@@ -1,0 +1,256 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Identity.API</name>
+    </assembly>
+    <members>
+        <member name="M:Identity.API.Common.JwtFactory.ToUnixEpochDate(System.DateTime)">
+            <returns>Date converted to seconds since Unix epoch (Jan 1, 1970, midnight UTC).</returns>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.Issuer">
+            <summary>
+            4.1.1.  "iss" (Issuer) Claim - The "iss" (issuer) claim identifies the principal that issued the JWT.
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.Subject">
+            <summary>
+            4.1.2.  "sub" (Subject) Claim - The "sub" (subject) claim identifies the principal that is the subject of the JWT.
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.Audience">
+            <summary>
+            4.1.3.  "aud" (Audience) Claim - The "aud" (audience) claim identifies the recipients that the JWT is intended for.
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.Expiration">
+            <summary>
+            4.1.4.  "exp" (Expiration Time) Claim - The "exp" (expiration time) claim identifies the expiration time on or after which the JWT MUST NOT be accepted for processing.
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.NotBefore">
+            <summary>
+            4.1.5.  "nbf" (Not Before) Claim - The "nbf" (not before) claim identifies the time before which the JWT MUST NOT be accepted for processing.
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.IssuedAt">
+            <summary>
+            4.1.6.  "iat" (Issued At) Claim - The "iat" (issued at) claim identifies the time at which the JWT was issued.
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.ValidFor">
+            <summary>
+            Set the timespan the token will be valid for (default is 120 min)
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.JtiGenerator">
+            <summary>
+            "jti" (JWT ID) Claim (default ID is a GUID)
+            </summary>
+        </member>
+        <member name="P:Identity.API.Common.JwtIssuerOptions.SigningCredentials">
+            <summary>
+            The signing key to use when generating tokens.
+            </summary>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.Register(Identity.API.Models.RegistrationModel)">
+            <summary>
+            Register a new user account (Authenticated: User account create/admin permission is required)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                POST {baseurl}/{api_endpoint}
+                {        
+                  "firstName": "Emilia",
+                  "lastName": "Clarke",
+                  "username": "newaccount2create@gmail.com" ,
+                  "password":"$trongPa5sw0rd"
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.Authenticate(Identity.API.Models.AuthenticateModel)">
+            <summary>
+            Authenticate an existing user (Public open endpoint)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                POST {baseurl}/{api_endpoint}
+                {        
+                  "username": "emailaddress@gmail.com" ,
+                  "password":"$trongPa5sw0rd"
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.RefreshToken(Identity.API.Models.ExchangeRefreshTokenModel)">
+            <summary>
+            Refresh expired or existing access token (Public open endpoint)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                POST {baseurl}/{api_endpoint}
+                {        
+                  "accessToken": "current_access_token" ,
+                  "refreshToken":"refresh_token_issued_with_current_access_token"
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.AssignUserGroup(Identity.API.Models.AssignUserGroupModel)">
+            <summary>
+            Assign user groups for an existing account (Authenticated: User account edit/admin permission is required)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                PUT {baseurl}/{api_endpoint}
+                {        
+                  "id": "1",
+                  "selectedUserGroups": ["Admin"],
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.ResetPassword(Identity.API.Models.ResetPasswordModel)">
+            <summary>
+            Reset password of an existing account (Authenticated: User account admin permission is required)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                POST {baseurl}/{api_endpoint}
+                {        
+                  "username": "account2reset@gmail.com",
+                  "password": "new$trongPa5sw0rd",
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.BlockAccount(System.String)">
+            <summary>
+            Block access for an existing account (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="username">username</param>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.UnblockAccount(System.String)">
+            <summary>
+            Unblock access of a blocked account (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="username">username</param>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.GetAccounts(CommonUtil.Models.DataTableAjaxPostModel)">
+            <summary>
+            List and search all existing accounts with paging behaviour (Authenticated: User account view/admin permission is required)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                POST {baseurl}/{api_endpoint}
+                {        
+                  "search": {
+                    "value":""
+                  },
+                  "start": 0, // starting row index. next iteration = start + length
+                  "length":10. // no. of records per page (take count)
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.Get(System.Int32)">
+            <summary>
+            View an existing user account details (Authenticated: User account view/admin permission is required)
+            </summary>
+            <param name="id">user account id</param>
+        </member>
+        <member name="M:Identity.API.Controllers.AccountController.GetNotAssignedUserGroups(System.Int32)">
+            <summary>
+            List not assigned user groups for an existing user account (Authenticated: User account view/admin permission is required)
+            </summary>
+            <param name="id">user account id</param>
+        </member>
+        <member name="M:Identity.API.Controllers.PermissionController.GetList">
+            <summary>
+            List all availble module permissions (Authenticated: User account admin permission is required)
+            </summary>
+        </member>
+        <member name="M:Identity.API.Controllers.PermissionController.Create(System.String)">
+            <summary>
+            Enable a system permission (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="name">permission name</param>
+        </member>
+        <member name="M:Identity.API.Controllers.PermissionController.Delete(System.String)">
+            <summary>
+            Disable a system permission (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="name">permission name</param>
+        </member>
+        <member name="M:Identity.API.Controllers.UserGroupController.Get(System.Int32)">
+            <summary>
+            Get full user group details along with assigned permissions and users (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="id">user group id</param>
+        </member>
+        <member name="M:Identity.API.Controllers.UserGroupController.GetList">
+            <summary>
+            List all available user groups (Authenticated: User account admin permission is required)
+            </summary>
+        </member>
+        <member name="M:Identity.API.Controllers.UserGroupController.Create(Identity.API.Models.CreateUserGroupModel)">
+            <summary>
+            Register a new user account (Authenticated: User account admin permission is required)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                POST {baseurl}/{api_endpoint}
+                {        
+                  "name": "Admin",
+                  "description": "Administrator permissions",
+                  "selectedPermissions": ["UserAccountAdmin","SampleModuleViewer"]
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.UserGroupController.Delete(System.String)">
+            <summary>
+            Delete an existin user group (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="name">User group name</param>
+        </member>
+        <member name="M:Identity.API.Controllers.UserGroupController.Edit(Identity.API.Models.EditUserGroupModel)">
+            <summary>
+            Edit an existing user group (Authenticated: User account admin permission is required)
+            </summary>
+            <remarks>
+            Sample request:
+            
+                PUT {baseurl}/{api_endpoint}
+                {        
+                  "id": "1",
+                  "name": "Admin",
+                  "description": "Administrator permissions" ,
+                  "selectedPermissions": ["UserAccountAdmin","SampleModuleViewer"]
+                }
+            </remarks>
+        </member>
+        <member name="M:Identity.API.Controllers.UserGroupController.GetNotAssignedPermissions(System.Int32)">
+            <summary>
+            List not assigned permissions list for a user group (Authenticated: User account admin permission is required)
+            </summary>
+            <param name="id">user group id</param>
+        </member>
+        <member name="T:Identity.API.Data.Repositories.Repository`1">
+            <summary>
+            A generic repository
+            </summary>
+            <typeparam name="T">Entity class</typeparam>
+        </member>
+        <member name="F:Identity.API.Data.Repositories.Repository`1._unitOfWork">
+            <summary>
+            shared UOW instance accessible across inherited repositories
+            </summary>
+        </member>
+        <member name="M:Identity.API.Entities.AppGroup.IsNameSimilarTo(CommonUtil.Maybe{System.String})">
+            <summary>
+            Determine whether group name is similar to specified name
+            </summary>
+        </member>
+    </members>
+</doc>

@@ -9,7 +9,7 @@ namespace Identity.API.Common
         /// <summary>
         /// 4.1.1.  "iss" (Issuer) Claim - The "iss" (issuer) claim identifies the principal that issued the JWT.
         /// </summary>
-        public string Issuer { get; set; }
+        public string Issuer { get; set; } = "http://identity.api";
 
         /// <summary>
         /// 4.1.2.  "sub" (Subject) Claim - The "sub" (subject) claim identifies the principal that is the subject of the JWT.
